@@ -1,0 +1,14 @@
+package: github.com/linki/etherdelta-go
+import:
+- package: github.com/alecthomas/kingpin
+  version: ~2.2.5
+- package: github.com/ethereum/go-ethereum
+  version: ~1.7.2
+  subpackages:
+  - accounts/abi
+  - accounts/abi/bind
+  - common
+  - core/types
+  - crypto
+  - ethclient
+  - rpc

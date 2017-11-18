@@ -16,8 +16,11 @@ This will create an [etherdelta.go](contract/etherdelta.go) file that you can im
 
 The [example code](main.go) contains a working interaction with the Ethereum blockchain and may even be useful for somebody.
 
-```
-$ ./etherdelta-go --endpoint "https://mainnet.infura.io" --token "0x27d...488" --owner "0x585...828C" --private-key "d4c...7b3"
+```console
+$ cd $GOPATH/src/github.com/linki/etherdelta-go
+$ glide install --strip-vendor
+$ go run main.go --endpoint "https://mainnet.infura.io" \
+    --token "0x27d...488" --owner "0x585...828C" --private-key "d4c...7b3"
 ```
 
 When using [EtherDelta](https://etherdelta.com/) (a decentralized exchange based on smart contracts) a user deposits funds from her own address into a pool that can be accessed by EtherDelta for executing trades. Later the user withdraws any funds from the pool back to her own address. Often there's a tiny amount left in the pool which is tedious to withdraw manually.
