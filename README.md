@@ -5,7 +5,7 @@ This is an example how to interact with Ethereum contracts from Go through RPC.
 It uses [abigen](https://github.com/ethereum/go-ethereum/tree/v1.7.2/cmd/abigen)
 to generate Go language bindings given a contract's ABI definition.
 
-To regenerate the code [install abigen](https://github.com/ethereum/go-ethereum/tree/v1.7.2#building-the-source) and run:
+To regenerate the code [install abigen](https://github.com/ethereum/go-ethereum/tree/v1.7.2#building-the-source), put the ABI definition into a file (e.g., [for the EtherDelta contract](https://etherscan.io/address/0x8d12a197cb00d4747a1fe03395095ce2a5cc6819#code)) and run:
 
 ```console
 $ cd contract
