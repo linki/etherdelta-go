@@ -1,4 +1,5 @@
 # etherdelta-go
+[![GitHub release](https://img.shields.io/github/release/linki/etherdelta-go.svg)](https://github.com/linki/etherdelta-go/releases)
 
 This is an example of how to interact with an Ethereum contract from Go through RPC.
 
@@ -27,7 +28,7 @@ The [example code](main.go) contains a working interaction with the Ethereum blo
 
 When using [EtherDelta](https://etherdelta.com/) (a decentralized exchange based on smart contracts) a user deposits funds from her own address into a pool that can be accessed by EtherDelta for executing trades. Later the user withdraws any funds from the pool back to her own address. Often there's a tiny amount left in the pool which is tedious to withdraw manually.
 
-`etherdelta-go` to the rescue; the following command will withdraw any remaining deposited funds back to the owner for a given token.
+`etherdelta-go` to the rescue; it allows you to withdraw any deposited Ethereum or [ERC20](https://theethereum.wiki/w/index.php/ERC20_Token_Standard) [Token](https://etherscan.io/tokens)s known to [0xProject](https://0xproject.com/)'s [Token Registry](https://etherscan.io/address/0x926a74c5c36adf004c87399e65f75628b0f98d2c) back to you.
 
 Build and install the binary:
 
@@ -40,36 +41,56 @@ $ go install
 Make sure `$GOPATH/bin` is in your `$PATH`, then run it like that:
 
 ```console
-$ etherdelta-go --token "0x27d...488" --keystore-file "UTC-...98c" --passphrase "my...pass"
-Deposited tokens: 500000000
-Withdrawing tokens: 500000000
+$ etherdelta-go --keystore-file "UTC-...98c" --passphrase "my...pass"
+Found tokens: 50
+Deposited ETH: 1000000000000000000
+...
+Deposited AIR: 500000000
+...
+```
+
+Note the balances are displayed using the smallest spendable unit. The above maps to 1 Ethereum and 5 AirToken.
+
+If you have anything deposited you can run the command with the `--withdraw-all` flag which will attempt to withdraw ETH and tokens that have a balance greater than zero.
+
+```console
+$ etherdelta-go --keystore-file "UTC-...98c" --passphrase "my...pass" --withdraw-all
+Found tokens: 50
+Deposited ETH: 1000000000000000000
+Withdrawing ETH: 1000000000000000000
+Transaction hash: 0x7e3892...be9249
+...
+Deposited AIR: 500000000
+Withdrawing AIR: 500000000
 Transaction hash: 0x1a6328...7ef38a
+...
+```
 
-$ # Wait for transaction to be mined, then run it again.
+The tool won't wait until the transactions have been mined. So just make sure the transactions got successfully submitted and give them some time to be mined. Then you can run the command again and validate that all your deposited ETH and tokens have been withdrawn.
 
-$ etherdelta-go --token "0x27d...488" --keystore-file "UTC-...98c" --passphrase "my...pass"
-Deposited tokens: 0
+```console
+$ etherdelta-go --keystore-file "UTC-...98c" --passphrase "my...pass"
+Found tokens: 50
+Deposited ETH: 0
+...
+Deposited AIR: 0
+...
 ```
 
 It takes the following arguments:
-* `token`: the address of the [ERC20](https://theethereum.wiki/w/index.php/ERC20_Token_Standard) [Token](https://etherscan.io/tokens) you want to withdraw, e.g., [AirToken](https://etherscan.io/token/0x27dce1ec4d3f72c3e457cc50354f1f975ddef488)
 * `keystore-file`: the location of an Ethereum [Keystore file](https://theethereum.wiki/w/index.php/Accounts,_Addresses,_Public_And_Private_Keys,_And_Tokens#UTC_JSON_Keystore_File) which describes where the funds will be withdrawn to as well as contains the encrypted private key for that address, e.g., `~/Library/Ethereum/keystore/UTC--2017-11-...61d3f9`
 * `passphrase`: the passphrase unlocking the `keystore-file`. (This proves that you are the owner of the Keystore file)
-
-If the deposited token balance is zero then no transaction will be issued.
+* `withdraw-all`: sends a transactions to withdraw the balance if it's greater than zero. Without this flag it will merely print the deposited balances. Note that `passphrase` must be provided and correct in both cases in order to successfully process the Keystore file. Defaults to `false` (disable withdrawal).
 
 There are some optional arguments as well:
 * `endpoint`: an RPC endpoint to interact with the Ethereum blockchain. You can run your own Ethereum node or connect to one provided by [Infura](https://infura.io/) free of charge. Defaults to `https://mainnet.infura.io`.
-* `contract`: The address of the EtherDelta contract to use. Since contracts are immutable each change to the contract requires a new contract to be deployed and results in a new contract address. Defaults to the most recent contract as of November 2017: [0x8d12A197cB00D4747a1fe03395095ce2A5CC6819](https://etherscan.io/address/0x8d12A197cB00D4747a1fe03395095ce2A5CC6819).
-* `skip-withdraw`: doesn't send any withdraw transaction but merely shows the token balance. Note that `passphrase` must still be provided and correct in order to successfully process the Keystore file. Defaults to `false` (enable withdrawal).
+* `etherdelta`: The address of the EtherDelta contract to use. Since contracts are immutable each change to the contract requires a new contract to be deployed and results in a new contract address. Defaults to the most recent contract as of December 2017: [0x8d12A197cB00D4747a1fe03395095ce2A5CC6819](https://etherscan.io/address/0x8d12A197cB00D4747a1fe03395095ce2A5CC6819).
+* `token-registry`: The address of 0xProject's TokenRegistry contract. Defaults to the most recent contract as of December 2017: [0x926a74c5C36adf004C87399e65f75628b0f98D2C](https://etherscan.io/address/0x926a74c5C36adf004C87399e65f75628b0f98D2C).
 * `gas-price`: The gas price in wei for the withdrawal transaction. Defaults to `1000000000` which is 1 Gwei.
 * `gas-limit`: The maximum gas to use for the withdrawal transaction. Defaults to `100000`. During my testing for AirToken the final gas for successful transactions hovered around `50000`.
+* `timeout`: The timeout to submit a transaction to the Ethereum endpoint. Defaults to 5 seconds.
 
 Keeping the defaults for `gas-price` and `gas-limit` will result in a maximum transaction fee of `0.0001` ETH.
-
-# Next steps
-
-It would be nice to extend the tool to iterate over all tokens that have some deposited funds left in EtherDelta's pool and send it back to the owner.
 
 # Disclaimer
 
