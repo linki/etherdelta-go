@@ -1,4 +1,5 @@
 # etherdelta-go
+[![GitHub release](https://img.shields.io/github/release/linki/etherdelta-go.svg)](https://github.com/linki/etherdelta-go/releases)
 
 This is an example of how to interact with an Ethereum contract from Go through RPC.
 
