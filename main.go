@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"math/big"
 	"os"
+	"time"
 
 	"github.com/alecthomas/kingpin"
 
@@ -23,6 +25,7 @@ const (
 	defaultEndpoint      = "https://mainnet.infura.io"
 	defaultEtherDelta    = "0x8d12A197cB00D4747a1fe03395095ce2A5CC6819"
 	defaultTokenRegistry = "0x926a74c5C36adf004C87399e65f75628b0f98D2C"
+	defaultTimeout       = "5s"
 	defaultGasPrice      = "1000000000"
 	defaultGasLimit      = "100000"
 )
@@ -33,20 +36,22 @@ var (
 	tokenRegistryAddress string
 	keyStorePath         string
 	passphrase           string
-	skipWithdraw         bool
+	withdrawAll          bool
 	gasPrice             int64
 	gasLimit             int64
+	timeout              time.Duration
 )
 
 func init() {
+	kingpin.Flag("keystore-file", "The owner's Keystore file location (required)").Required().ExistingFileVar(&keyStorePath)
+	kingpin.Flag("passphrase", "The Keystore file's passphrase (required)").Required().StringVar(&passphrase)
+	kingpin.Flag("withdraw-all", "Withdraw all deposited tokens (optional, default: false)").BoolVar(&withdrawAll)
 	kingpin.Flag("endpoint", "Ethereum RPC endpoint (optional, default: https://mainnet.infura.io)").Default(defaultEndpoint).StringVar(&endpoint)
 	kingpin.Flag("etherdelta", "EtherDelta contract address (optional, default: 0x8d12A197cB00D4747a1fe03395095ce2A5CC6819)").Default(defaultEtherDelta).StringVar(&etherDeltaAddress)
 	kingpin.Flag("token-registry", "TokenRegistry contract address (optional, default: 0x926a74c5C36adf004C87399e65f75628b0f98D2C)").Default(defaultTokenRegistry).StringVar(&tokenRegistryAddress)
-	kingpin.Flag("keystore-file", "The owner's Keystore file location (required)").Required().ExistingFileVar(&keyStorePath)
-	kingpin.Flag("passphrase", "The Keystore file's passphrase (required)").Required().StringVar(&passphrase)
-	kingpin.Flag("skip-withdraw", "Don't withdraw remaining tokens (optional, default: false)").BoolVar(&skipWithdraw)
 	kingpin.Flag("gas-price", "The gas price in wei (optional, default: 1000000000, i.e. 1 Gwei)").Default(defaultGasPrice).Int64Var(&gasPrice)
 	kingpin.Flag("gas-limit", "The gas limit; default: 100000").Default(defaultGasLimit).Int64Var(&gasLimit)
+	kingpin.Flag("timeout", "The timeout to submit a transaction to the Ethereum endpoint; default: 5 seconds").Default(defaultTimeout).DurationVar(&timeout)
 }
 
 func main() {
@@ -68,11 +73,11 @@ func main() {
 	}
 
 	// Fetch the list of registered tokens from the token registry.
-	tokenAddresses, err := tokenRegistry.GetTokenAddresses(nil)
+	tokens, err := tokenRegistry.GetTokenAddresses(nil)
 	if err != nil {
 		log.Fatalf("Failed to fetch registered tokens: %v", err)
 	}
-	fmt.Println("Found tokens:", len(tokenAddresses))
+	fmt.Println("Found tokens:", len(tokens))
 
 	// Create an instance of the EtherDelta contract at the specific address.
 	etherDelta, err := contract.NewEtherDelta(common.HexToAddress(etherDeltaAddress), conn)
@@ -99,7 +104,45 @@ func main() {
 		log.Fatalf("Failed to decrypt Keystore file: %v", err)
 	}
 
-	for _, token := range tokenAddresses {
+	// EtherDelta manages the ETH deposits as "Token at address 0".
+	ethTokenAddress := common.Address{}
+
+	// Retrieve the owner's deposited ETH balance.
+	balance, err := etherDelta.BalanceOf(nil, ethTokenAddress, ownerKey.Address)
+	if err != nil {
+		log.Fatalf("Failed to retrieve balance: %v", err)
+	}
+	fmt.Printf("Deposited ETH: %s\n", balance)
+
+	// If withdrawal is enabled and there's something to withdraw, withdraw it.
+	if withdrawAll && balance.Cmp(common.Big0) == 1 {
+		// Withdraw the entire deposited balance.
+		fmt.Println("Withdrawing ETH:", balance)
+
+		// Add a timeout to submitting the transaction.
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		// The transaction needs additional metadata, e.g. the private key for
+		// authorization as well as gas price and limit.
+		opts := bind.NewKeyedTransactor(ownerKey.PrivateKey)
+		opts.Context = ctx
+		opts.GasLimit = big.NewInt(gasLimit)
+		opts.GasPrice = big.NewInt(gasPrice)
+
+		// Execute the WithdrawToken function of the EtherDelta contract given the
+		// required arguments: the token address and amount. Also provide the metadata
+		// created above in order to successfully create and sign the transaction.
+		tx, err := etherDelta.Withdraw(opts, balance)
+		if err == nil {
+			// Print the hash of the submitted transaction for tracking.
+			fmt.Println("Transaction hash:", tx.Hash().String())
+		} else {
+			log.Printf("Failed to withdraw ETH: %v", err)
+		}
+	}
+
+	for _, token := range tokens {
 		// Get the token's symbol for display later.
 		_, _, symbol, _, _, _, err := tokenRegistry.GetTokenMetaData(nil, token)
 		if err != nil {
@@ -111,32 +154,34 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to retrieve balance: %v", err)
 		}
-		fmt.Printf("Deposited tokens of %s: %s\n", symbol, balance)
+		fmt.Printf("Deposited %s: %s\n", symbol, balance)
 
-		// If withdrawal is disabled or there's nothing to withdraw, continue to the
-		// next token.
-		if skipWithdraw || balance.Cmp(common.Big0) == 0 {
-			continue
+		// If withdrawal is enabled and there's something to withdraw, withdraw it.
+		if withdrawAll && balance.Cmp(common.Big0) == 1 {
+			// Withdraw the entire deposited balance.
+			fmt.Printf("Withdrawing %s: %s\n", symbol, balance)
+
+			// Add a timeout to submitting the transaction.
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
+			defer cancel()
+
+			// The transaction needs additional metadata, e.g. the private key for
+			// authorization as well as gas price and limit.
+			opts := bind.NewKeyedTransactor(ownerKey.PrivateKey)
+			opts.Context = ctx
+			opts.GasLimit = big.NewInt(gasLimit)
+			opts.GasPrice = big.NewInt(gasPrice)
+
+			// Execute the WithdrawToken function of the EtherDelta contract given the
+			// required arguments: the token address and amount. Also provide the metadata
+			// created above in order to successfully create and sign the transaction.
+			tx, err := etherDelta.WithdrawToken(opts, token, balance)
+			if err == nil {
+				// Print the hash of the submitted transaction for tracking.
+				fmt.Println("Transaction hash:", tx.Hash().String())
+			} else {
+				log.Printf("Failed to withdraw %s: %v", symbol, err)
+			}
 		}
-
-		// Otherwise withdraw the deposited tokens.
-		fmt.Println("Withdrawing tokens:", balance)
-
-		// The transaction needs additional metadata, e.g. the private key for
-		// authorization as well as gas price and limit.
-		opts := bind.NewKeyedTransactor(ownerKey.PrivateKey)
-		opts.GasLimit = big.NewInt(gasLimit)
-		opts.GasPrice = big.NewInt(gasPrice)
-
-		// Execute the WithdrawToken function of the EtherDelta contract given the
-		// required arguments: the token address and amount. Also provide the metadata
-		// created above in order to successfully create and sign the transaction.
-		tx, err := etherDelta.WithdrawToken(opts, token, balance)
-		if err != nil {
-			log.Fatalf("Failed to withdraw tokens: %v", err)
-		}
-
-		// Print the hash of the submitted transaction for tracking.
-		fmt.Println("Transaction hash:", tx.Hash().String())
 	}
 }
