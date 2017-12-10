@@ -51,7 +51,7 @@ func init() {
 	kingpin.Flag("token-registry", "TokenRegistry contract address (optional, default: 0x926a74c5C36adf004C87399e65f75628b0f98D2C)").Default(defaultTokenRegistry).StringVar(&tokenRegistryAddress)
 	kingpin.Flag("gas-price", "The gas price in wei (optional, default: 1000000000, i.e. 1 Gwei)").Default(defaultGasPrice).Int64Var(&gasPrice)
 	kingpin.Flag("gas-limit", "The gas limit; default: 100000").Default(defaultGasLimit).Int64Var(&gasLimit)
-	kingpin.Flag("timeout", "The timeout to submit a transaction to the Ethereum endpoint; default: 5 seconds").Default(defaultTimeout).DurationVar(&timeout)
+	kingpin.Flag("timeout", "The timeout to submit a transaction to the Ethereum endpoint (optional, default: 5 seconds)").Default(defaultTimeout).DurationVar(&timeout)
 }
 
 func main() {
@@ -130,9 +130,9 @@ func main() {
 		opts.GasLimit = big.NewInt(gasLimit)
 		opts.GasPrice = big.NewInt(gasPrice)
 
-		// Execute the WithdrawToken function of the EtherDelta contract given the
-		// required arguments: the token address and amount. Also provide the metadata
-		// created above in order to successfully create and sign the transaction.
+		// Execute the Withdraw function of the EtherDelta contract given the required
+		// arguments: the amount. Also provide the metadata created above in order to
+		// successfully create and sign the transaction.
 		tx, err := etherDelta.Withdraw(opts, balance)
 		if err == nil {
 			// Print the hash of the submitted transaction for tracking.
@@ -142,6 +142,7 @@ func main() {
 		}
 	}
 
+	// Go through each token known to the TokenRegistry and try to withdraw any balance.
 	for _, token := range tokens {
 		// Get the token's symbol for display later.
 		_, _, symbol, _, _, _, err := tokenRegistry.GetTokenMetaData(nil, token)
