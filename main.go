@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,7 +14,6 @@ import (
 	"github.com/alecthomas/kingpin"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -42,15 +43,20 @@ var (
 	timeout              time.Duration
 )
 
+// KeyStore is a subset of an Ethereum KeyStore file for parsing the Address only.
+type KeyStore struct {
+	Address string `json:"address"`
+}
+
 func init() {
 	kingpin.Flag("keystore-file", "The owner's Keystore file location (required)").Required().ExistingFileVar(&keyStorePath)
-	kingpin.Flag("passphrase", "The Keystore file's passphrase (required)").Required().StringVar(&passphrase)
 	kingpin.Flag("withdraw-all", "Withdraw all deposited tokens (optional, default: false)").BoolVar(&withdrawAll)
+	kingpin.Flag("passphrase", "The Keystore file's passphrase (optional, required when using --withdraw-all)").StringVar(&passphrase)
 	kingpin.Flag("endpoint", "Ethereum RPC endpoint (optional, default: https://mainnet.infura.io)").Default(defaultEndpoint).StringVar(&endpoint)
 	kingpin.Flag("etherdelta", "EtherDelta contract address (optional, default: 0x8d12A197cB00D4747a1fe03395095ce2A5CC6819)").Default(defaultEtherDelta).StringVar(&etherDeltaAddress)
 	kingpin.Flag("token-registry", "TokenRegistry contract address (optional, default: 0x926a74c5C36adf004C87399e65f75628b0f98D2C)").Default(defaultTokenRegistry).StringVar(&tokenRegistryAddress)
 	kingpin.Flag("gas-price", "The gas price in wei (optional, default: 1000000000, i.e. 1 Gwei)").Default(defaultGasPrice).Int64Var(&gasPrice)
-	kingpin.Flag("gas-limit", "The gas limit; default: 100000").Default(defaultGasLimit).Int64Var(&gasLimit)
+	kingpin.Flag("gas-limit", "The gas limit (optional, default: 100000)").Default(defaultGasLimit).Int64Var(&gasLimit)
 	kingpin.Flag("timeout", "The timeout to submit a transaction to the Ethereum endpoint (optional, default: 5 seconds)").Default(defaultTimeout).DurationVar(&timeout)
 }
 
@@ -58,6 +64,11 @@ func main() {
 	// Parse command line flags.
 	kingpin.Version(version)
 	kingpin.Parse()
+
+	// When balances should be withdrawn, a passphrase to unlock the keystore file is required.
+	if withdrawAll && passphrase == "" {
+		log.Fatalf("--passphrase is mandatory when using --withdraw-all.")
+	}
 
 	// Create an Ethereum client connecting to the provided RPC endpoint.
 	c, err := rpc.DialHTTP(endpoint)
@@ -98,17 +109,19 @@ func main() {
 		log.Fatalf("Failed to parse Keystore file: %v", err)
 	}
 
-	// Parse and decrypt the content given a passphrase.
-	ownerKey, err := keystore.DecryptKey(keyStoreJSON, passphrase)
-	if err != nil {
-		log.Fatalf("Failed to decrypt Keystore file: %v", err)
+	// Parse the content for the Address field.
+	keyStore := KeyStore{}
+	if err = json.Unmarshal(keyStoreJSON, &keyStore); err != nil {
+		log.Fatalf("Failed to parse Keystore file: %v", err)
 	}
+	ownerAddress := common.HexToAddress(keyStore.Address)
+	fmt.Println("Your address:", ownerAddress.Hex())
 
 	// EtherDelta manages the ETH deposits as "Token at address 0".
 	ethTokenAddress := common.Address{}
 
 	// Retrieve the owner's deposited ETH balance.
-	balance, err := etherDelta.BalanceOf(nil, ethTokenAddress, ownerKey.Address)
+	balance, err := etherDelta.BalanceOf(nil, ethTokenAddress, ownerAddress)
 	if err != nil {
 		log.Fatalf("Failed to retrieve balance: %v", err)
 	}
@@ -125,7 +138,10 @@ func main() {
 
 		// The transaction needs additional metadata, e.g. the private key for
 		// authorization as well as gas price and limit.
-		opts := bind.NewKeyedTransactor(ownerKey.PrivateKey)
+		opts, err := bind.NewTransactor(bytes.NewReader(keyStoreJSON), passphrase)
+		if err != nil {
+			log.Fatalf("Failed to create Transactor from Keystore file: %v", err)
+		}
 		opts.Context = ctx
 		opts.GasLimit = big.NewInt(gasLimit)
 		opts.GasPrice = big.NewInt(gasPrice)
@@ -151,7 +167,7 @@ func main() {
 		}
 
 		// Retrieve the owner's deposited balance of the token.
-		balance, err := etherDelta.BalanceOf(nil, token, ownerKey.Address)
+		balance, err := etherDelta.BalanceOf(nil, token, ownerAddress)
 		if err != nil {
 			log.Fatalf("Failed to retrieve balance: %v", err)
 		}
@@ -168,7 +184,10 @@ func main() {
 
 			// The transaction needs additional metadata, e.g. the private key for
 			// authorization as well as gas price and limit.
-			opts := bind.NewKeyedTransactor(ownerKey.PrivateKey)
+			opts, err := bind.NewTransactor(bytes.NewReader(keyStoreJSON), passphrase)
+			if err != nil {
+				log.Fatalf("Failed to create Transactor from Keystore file: %v", err)
+			}
 			opts.Context = ctx
 			opts.GasLimit = big.NewInt(gasLimit)
 			opts.GasPrice = big.NewInt(gasPrice)

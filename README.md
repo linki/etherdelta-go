@@ -41,8 +41,9 @@ $ go install
 Make sure `$GOPATH/bin` is in your `$PATH`, then run it like that:
 
 ```console
-$ etherdelta-go --keystore-file "UTC-...98c" --passphrase "my...pass"
+$ etherdelta-go --keystore-file "UTC-...98c"
 Found tokens: 50
+Your address: 0x001...98C
 Deposited ETH: 1000000000000000000
 ...
 Deposited AIR: 500000000
@@ -51,11 +52,12 @@ Deposited AIR: 500000000
 
 Note the balances are displayed using the smallest spendable unit. The above maps to 1 Ethereum and 5 AirToken.
 
-If you have anything deposited you can run the command with the `--withdraw-all` flag which will attempt to withdraw ETH and tokens that have a balance greater than zero.
+If you have anything deposited you can run the command with the `--withdraw-all` flag which will attempt to withdraw ETH and tokens that have a balance greater than zero. When using `--withdraw-all` you also have to provide `--passphrase` to unlock your Keystore file.
 
 ```console
 $ etherdelta-go --keystore-file "UTC-...98c" --passphrase "my...pass" --withdraw-all
 Found tokens: 50
+Your address: 0x001...98C
 Deposited ETH: 1000000000000000000
 Withdrawing ETH: 1000000000000000000
 Transaction hash: 0x7e3892...be9249
@@ -69,7 +71,7 @@ Transaction hash: 0x1a6328...7ef38a
 The tool won't wait until the transactions have been mined. So just make sure the transactions got successfully submitted and give them some time to be mined. Then you can run the command again and validate that all your deposited ETH and tokens have been withdrawn.
 
 ```console
-$ etherdelta-go --keystore-file "UTC-...98c" --passphrase "my...pass"
+$ etherdelta-go --keystore-file "UTC-...98c"
 Found tokens: 50
 Deposited ETH: 0
 ...
@@ -79,8 +81,8 @@ Deposited AIR: 0
 
 It takes the following arguments:
 * `keystore-file`: the location of an Ethereum [Keystore file](https://theethereum.wiki/w/index.php/Accounts,_Addresses,_Public_And_Private_Keys,_And_Tokens#UTC_JSON_Keystore_File) which describes where the funds will be withdrawn to as well as contains the encrypted private key for that address, e.g., `~/Library/Ethereum/keystore/UTC--2017-11-...61d3f9`
-* `passphrase`: the passphrase unlocking the `keystore-file`. (This proves that you are the owner of the Keystore file)
-* `withdraw-all`: sends a transactions to withdraw the balance if it's greater than zero. Without this flag it will merely print the deposited balances. Note that `passphrase` must be provided and correct in both cases in order to successfully process the Keystore file. Defaults to `false` (disable withdrawal).
+* `withdraw-all`: sends a transactions to withdraw the balance if it's greater than zero. Without this flag it will merely print the deposited balances. Note that `passphrase` must be provided and correct in order to successfully sign the transaction. Defaults to `false` (disable withdrawal).
+* `passphrase`: the passphrase unlocking the `keystore-file`. It proves that you are the owner of the Keystore file and is only required when using `withdraw-all`.
 
 There are some optional arguments as well:
 * `endpoint`: an RPC endpoint to interact with the Ethereum blockchain. You can run your own Ethereum node or connect to one provided by [Infura](https://infura.io/) free of charge. Defaults to `https://mainnet.infura.io`.
