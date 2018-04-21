@@ -7,10 +7,12 @@ import (
 	"math/big"
 	"strings"
 
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 )
 
 // TokenRegistryABI is the input ABI used to generate the binding from.
@@ -20,6 +22,7 @@ const TokenRegistryABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_token\",
 type TokenRegistry struct {
 	TokenRegistryCaller     // Read-only binding to the contract
 	TokenRegistryTransactor // Write-only binding to the contract
+	TokenRegistryFilterer   // Log filterer for contract events
 }
 
 // TokenRegistryCaller is an auto generated read-only Go binding around an Ethereum contract.
@@ -29,6 +32,11 @@ type TokenRegistryCaller struct {
 
 // TokenRegistryTransactor is an auto generated write-only Go binding around an Ethereum contract.
 type TokenRegistryTransactor struct {
+	contract *bind.BoundContract // Generic contract wrapper for the low level calls
+}
+
+// TokenRegistryFilterer is an auto generated log filtering Go binding around an Ethereum contract events.
+type TokenRegistryFilterer struct {
 	contract *bind.BoundContract // Generic contract wrapper for the low level calls
 }
 
@@ -71,16 +79,16 @@ type TokenRegistryTransactorRaw struct {
 
 // NewTokenRegistry creates a new instance of TokenRegistry, bound to a specific deployed contract.
 func NewTokenRegistry(address common.Address, backend bind.ContractBackend) (*TokenRegistry, error) {
-	contract, err := bindTokenRegistry(address, backend, backend)
+	contract, err := bindTokenRegistry(address, backend, backend, backend)
 	if err != nil {
 		return nil, err
 	}
-	return &TokenRegistry{TokenRegistryCaller: TokenRegistryCaller{contract: contract}, TokenRegistryTransactor: TokenRegistryTransactor{contract: contract}}, nil
+	return &TokenRegistry{TokenRegistryCaller: TokenRegistryCaller{contract: contract}, TokenRegistryTransactor: TokenRegistryTransactor{contract: contract}, TokenRegistryFilterer: TokenRegistryFilterer{contract: contract}}, nil
 }
 
 // NewTokenRegistryCaller creates a new read-only instance of TokenRegistry, bound to a specific deployed contract.
 func NewTokenRegistryCaller(address common.Address, caller bind.ContractCaller) (*TokenRegistryCaller, error) {
-	contract, err := bindTokenRegistry(address, caller, nil)
+	contract, err := bindTokenRegistry(address, caller, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -89,20 +97,29 @@ func NewTokenRegistryCaller(address common.Address, caller bind.ContractCaller) 
 
 // NewTokenRegistryTransactor creates a new write-only instance of TokenRegistry, bound to a specific deployed contract.
 func NewTokenRegistryTransactor(address common.Address, transactor bind.ContractTransactor) (*TokenRegistryTransactor, error) {
-	contract, err := bindTokenRegistry(address, nil, transactor)
+	contract, err := bindTokenRegistry(address, nil, transactor, nil)
 	if err != nil {
 		return nil, err
 	}
 	return &TokenRegistryTransactor{contract: contract}, nil
 }
 
+// NewTokenRegistryFilterer creates a new log filterer instance of TokenRegistry, bound to a specific deployed contract.
+func NewTokenRegistryFilterer(address common.Address, filterer bind.ContractFilterer) (*TokenRegistryFilterer, error) {
+	contract, err := bindTokenRegistry(address, nil, nil, filterer)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenRegistryFilterer{contract: contract}, nil
+}
+
 // bindTokenRegistry binds a generic wrapper to an already deployed contract.
-func bindTokenRegistry(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor) (*bind.BoundContract, error) {
+func bindTokenRegistry(address common.Address, caller bind.ContractCaller, transactor bind.ContractTransactor, filterer bind.ContractFilterer) (*bind.BoundContract, error) {
 	parsed, err := abi.JSON(strings.NewReader(TokenRegistryABI))
 	if err != nil {
 		return nil, err
 	}
-	return bind.NewBoundContract(address, parsed, caller, transactor), nil
+	return bind.NewBoundContract(address, parsed, caller, transactor, filterer), nil
 }
 
 // Call invokes the (constant) contract method with params as input values and
@@ -584,4 +601,814 @@ func (_TokenRegistry *TokenRegistrySession) TransferOwnership(newOwner common.Ad
 // Solidity: function transferOwnership(newOwner address) returns()
 func (_TokenRegistry *TokenRegistryTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
 	return _TokenRegistry.Contract.TransferOwnership(&_TokenRegistry.TransactOpts, newOwner)
+}
+
+// TokenRegistryLogAddTokenIterator is returned from FilterLogAddToken and is used to iterate over the raw logs and unpacked data for LogAddToken events raised by the TokenRegistry contract.
+type TokenRegistryLogAddTokenIterator struct {
+	Event *TokenRegistryLogAddToken // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *TokenRegistryLogAddTokenIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(TokenRegistryLogAddToken)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(TokenRegistryLogAddToken)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *TokenRegistryLogAddTokenIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *TokenRegistryLogAddTokenIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// TokenRegistryLogAddToken represents a LogAddToken event raised by the TokenRegistry contract.
+type TokenRegistryLogAddToken struct {
+	Token     common.Address
+	Name      string
+	Symbol    string
+	Decimals  uint8
+	IpfsHash  []byte
+	SwarmHash []byte
+	Raw       types.Log // Blockchain specific contextual infos
+}
+
+// FilterLogAddToken is a free log retrieval operation binding the contract event 0xd8d928b0b50ca11d9dc273236b46f3526515b03602f71f3a6af4f45bd9fa9144.
+//
+// Solidity: event LogAddToken(token indexed address, name string, symbol string, decimals uint8, ipfsHash bytes, swarmHash bytes)
+func (_TokenRegistry *TokenRegistryFilterer) FilterLogAddToken(opts *bind.FilterOpts, token []common.Address) (*TokenRegistryLogAddTokenIterator, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.FilterLogs(opts, "LogAddToken", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenRegistryLogAddTokenIterator{contract: _TokenRegistry.contract, event: "LogAddToken", logs: logs, sub: sub}, nil
+}
+
+// WatchLogAddToken is a free log subscription operation binding the contract event 0xd8d928b0b50ca11d9dc273236b46f3526515b03602f71f3a6af4f45bd9fa9144.
+//
+// Solidity: event LogAddToken(token indexed address, name string, symbol string, decimals uint8, ipfsHash bytes, swarmHash bytes)
+func (_TokenRegistry *TokenRegistryFilterer) WatchLogAddToken(opts *bind.WatchOpts, sink chan<- *TokenRegistryLogAddToken, token []common.Address) (event.Subscription, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.WatchLogs(opts, "LogAddToken", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(TokenRegistryLogAddToken)
+				if err := _TokenRegistry.contract.UnpackLog(event, "LogAddToken", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// TokenRegistryLogRemoveTokenIterator is returned from FilterLogRemoveToken and is used to iterate over the raw logs and unpacked data for LogRemoveToken events raised by the TokenRegistry contract.
+type TokenRegistryLogRemoveTokenIterator struct {
+	Event *TokenRegistryLogRemoveToken // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *TokenRegistryLogRemoveTokenIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(TokenRegistryLogRemoveToken)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(TokenRegistryLogRemoveToken)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *TokenRegistryLogRemoveTokenIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *TokenRegistryLogRemoveTokenIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// TokenRegistryLogRemoveToken represents a LogRemoveToken event raised by the TokenRegistry contract.
+type TokenRegistryLogRemoveToken struct {
+	Token     common.Address
+	Name      string
+	Symbol    string
+	Decimals  uint8
+	IpfsHash  []byte
+	SwarmHash []byte
+	Raw       types.Log // Blockchain specific contextual infos
+}
+
+// FilterLogRemoveToken is a free log retrieval operation binding the contract event 0x32c54f1e2ea75844ded7517e7dbcd3895da7cd0c28f9ab9f9cf6ecf5f83762c6.
+//
+// Solidity: event LogRemoveToken(token indexed address, name string, symbol string, decimals uint8, ipfsHash bytes, swarmHash bytes)
+func (_TokenRegistry *TokenRegistryFilterer) FilterLogRemoveToken(opts *bind.FilterOpts, token []common.Address) (*TokenRegistryLogRemoveTokenIterator, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.FilterLogs(opts, "LogRemoveToken", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenRegistryLogRemoveTokenIterator{contract: _TokenRegistry.contract, event: "LogRemoveToken", logs: logs, sub: sub}, nil
+}
+
+// WatchLogRemoveToken is a free log subscription operation binding the contract event 0x32c54f1e2ea75844ded7517e7dbcd3895da7cd0c28f9ab9f9cf6ecf5f83762c6.
+//
+// Solidity: event LogRemoveToken(token indexed address, name string, symbol string, decimals uint8, ipfsHash bytes, swarmHash bytes)
+func (_TokenRegistry *TokenRegistryFilterer) WatchLogRemoveToken(opts *bind.WatchOpts, sink chan<- *TokenRegistryLogRemoveToken, token []common.Address) (event.Subscription, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.WatchLogs(opts, "LogRemoveToken", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(TokenRegistryLogRemoveToken)
+				if err := _TokenRegistry.contract.UnpackLog(event, "LogRemoveToken", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// TokenRegistryLogTokenIpfsHashChangeIterator is returned from FilterLogTokenIpfsHashChange and is used to iterate over the raw logs and unpacked data for LogTokenIpfsHashChange events raised by the TokenRegistry contract.
+type TokenRegistryLogTokenIpfsHashChangeIterator struct {
+	Event *TokenRegistryLogTokenIpfsHashChange // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *TokenRegistryLogTokenIpfsHashChangeIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(TokenRegistryLogTokenIpfsHashChange)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(TokenRegistryLogTokenIpfsHashChange)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *TokenRegistryLogTokenIpfsHashChangeIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *TokenRegistryLogTokenIpfsHashChangeIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// TokenRegistryLogTokenIpfsHashChange represents a LogTokenIpfsHashChange event raised by the TokenRegistry contract.
+type TokenRegistryLogTokenIpfsHashChange struct {
+	Token       common.Address
+	OldIpfsHash []byte
+	NewIpfsHash []byte
+	Raw         types.Log // Blockchain specific contextual infos
+}
+
+// FilterLogTokenIpfsHashChange is a free log retrieval operation binding the contract event 0x5b19f79ac4e8cfa820815502e11615f1a449e28155dc289ec5cac1a11f908694.
+//
+// Solidity: event LogTokenIpfsHashChange(token indexed address, oldIpfsHash bytes, newIpfsHash bytes)
+func (_TokenRegistry *TokenRegistryFilterer) FilterLogTokenIpfsHashChange(opts *bind.FilterOpts, token []common.Address) (*TokenRegistryLogTokenIpfsHashChangeIterator, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.FilterLogs(opts, "LogTokenIpfsHashChange", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenRegistryLogTokenIpfsHashChangeIterator{contract: _TokenRegistry.contract, event: "LogTokenIpfsHashChange", logs: logs, sub: sub}, nil
+}
+
+// WatchLogTokenIpfsHashChange is a free log subscription operation binding the contract event 0x5b19f79ac4e8cfa820815502e11615f1a449e28155dc289ec5cac1a11f908694.
+//
+// Solidity: event LogTokenIpfsHashChange(token indexed address, oldIpfsHash bytes, newIpfsHash bytes)
+func (_TokenRegistry *TokenRegistryFilterer) WatchLogTokenIpfsHashChange(opts *bind.WatchOpts, sink chan<- *TokenRegistryLogTokenIpfsHashChange, token []common.Address) (event.Subscription, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.WatchLogs(opts, "LogTokenIpfsHashChange", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(TokenRegistryLogTokenIpfsHashChange)
+				if err := _TokenRegistry.contract.UnpackLog(event, "LogTokenIpfsHashChange", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// TokenRegistryLogTokenNameChangeIterator is returned from FilterLogTokenNameChange and is used to iterate over the raw logs and unpacked data for LogTokenNameChange events raised by the TokenRegistry contract.
+type TokenRegistryLogTokenNameChangeIterator struct {
+	Event *TokenRegistryLogTokenNameChange // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *TokenRegistryLogTokenNameChangeIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(TokenRegistryLogTokenNameChange)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(TokenRegistryLogTokenNameChange)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *TokenRegistryLogTokenNameChangeIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *TokenRegistryLogTokenNameChangeIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// TokenRegistryLogTokenNameChange represents a LogTokenNameChange event raised by the TokenRegistry contract.
+type TokenRegistryLogTokenNameChange struct {
+	Token   common.Address
+	OldName string
+	NewName string
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterLogTokenNameChange is a free log retrieval operation binding the contract event 0x4a6dbfc867b179991dec22ff19960f0a94d8d9d891fc556f547764670340e8ae.
+//
+// Solidity: event LogTokenNameChange(token indexed address, oldName string, newName string)
+func (_TokenRegistry *TokenRegistryFilterer) FilterLogTokenNameChange(opts *bind.FilterOpts, token []common.Address) (*TokenRegistryLogTokenNameChangeIterator, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.FilterLogs(opts, "LogTokenNameChange", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenRegistryLogTokenNameChangeIterator{contract: _TokenRegistry.contract, event: "LogTokenNameChange", logs: logs, sub: sub}, nil
+}
+
+// WatchLogTokenNameChange is a free log subscription operation binding the contract event 0x4a6dbfc867b179991dec22ff19960f0a94d8d9d891fc556f547764670340e8ae.
+//
+// Solidity: event LogTokenNameChange(token indexed address, oldName string, newName string)
+func (_TokenRegistry *TokenRegistryFilterer) WatchLogTokenNameChange(opts *bind.WatchOpts, sink chan<- *TokenRegistryLogTokenNameChange, token []common.Address) (event.Subscription, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.WatchLogs(opts, "LogTokenNameChange", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(TokenRegistryLogTokenNameChange)
+				if err := _TokenRegistry.contract.UnpackLog(event, "LogTokenNameChange", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// TokenRegistryLogTokenSwarmHashChangeIterator is returned from FilterLogTokenSwarmHashChange and is used to iterate over the raw logs and unpacked data for LogTokenSwarmHashChange events raised by the TokenRegistry contract.
+type TokenRegistryLogTokenSwarmHashChangeIterator struct {
+	Event *TokenRegistryLogTokenSwarmHashChange // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *TokenRegistryLogTokenSwarmHashChangeIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(TokenRegistryLogTokenSwarmHashChange)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(TokenRegistryLogTokenSwarmHashChange)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *TokenRegistryLogTokenSwarmHashChangeIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *TokenRegistryLogTokenSwarmHashChangeIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// TokenRegistryLogTokenSwarmHashChange represents a LogTokenSwarmHashChange event raised by the TokenRegistry contract.
+type TokenRegistryLogTokenSwarmHashChange struct {
+	Token        common.Address
+	OldSwarmHash []byte
+	NewSwarmHash []byte
+	Raw          types.Log // Blockchain specific contextual infos
+}
+
+// FilterLogTokenSwarmHashChange is a free log retrieval operation binding the contract event 0xc3168fdc13112e44a031057dbf6c609b33353addb4d8037d24543e22cbfe2acd.
+//
+// Solidity: event LogTokenSwarmHashChange(token indexed address, oldSwarmHash bytes, newSwarmHash bytes)
+func (_TokenRegistry *TokenRegistryFilterer) FilterLogTokenSwarmHashChange(opts *bind.FilterOpts, token []common.Address) (*TokenRegistryLogTokenSwarmHashChangeIterator, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.FilterLogs(opts, "LogTokenSwarmHashChange", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenRegistryLogTokenSwarmHashChangeIterator{contract: _TokenRegistry.contract, event: "LogTokenSwarmHashChange", logs: logs, sub: sub}, nil
+}
+
+// WatchLogTokenSwarmHashChange is a free log subscription operation binding the contract event 0xc3168fdc13112e44a031057dbf6c609b33353addb4d8037d24543e22cbfe2acd.
+//
+// Solidity: event LogTokenSwarmHashChange(token indexed address, oldSwarmHash bytes, newSwarmHash bytes)
+func (_TokenRegistry *TokenRegistryFilterer) WatchLogTokenSwarmHashChange(opts *bind.WatchOpts, sink chan<- *TokenRegistryLogTokenSwarmHashChange, token []common.Address) (event.Subscription, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.WatchLogs(opts, "LogTokenSwarmHashChange", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(TokenRegistryLogTokenSwarmHashChange)
+				if err := _TokenRegistry.contract.UnpackLog(event, "LogTokenSwarmHashChange", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// TokenRegistryLogTokenSymbolChangeIterator is returned from FilterLogTokenSymbolChange and is used to iterate over the raw logs and unpacked data for LogTokenSymbolChange events raised by the TokenRegistry contract.
+type TokenRegistryLogTokenSymbolChangeIterator struct {
+	Event *TokenRegistryLogTokenSymbolChange // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *TokenRegistryLogTokenSymbolChangeIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(TokenRegistryLogTokenSymbolChange)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(TokenRegistryLogTokenSymbolChange)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *TokenRegistryLogTokenSymbolChangeIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *TokenRegistryLogTokenSymbolChangeIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// TokenRegistryLogTokenSymbolChange represents a LogTokenSymbolChange event raised by the TokenRegistry contract.
+type TokenRegistryLogTokenSymbolChange struct {
+	Token     common.Address
+	OldSymbol string
+	NewSymbol string
+	Raw       types.Log // Blockchain specific contextual infos
+}
+
+// FilterLogTokenSymbolChange is a free log retrieval operation binding the contract event 0x53d878a6530e56c9bc96548fa0a8cae4f1d1f49c86b0e934c086b992ebb6998f.
+//
+// Solidity: event LogTokenSymbolChange(token indexed address, oldSymbol string, newSymbol string)
+func (_TokenRegistry *TokenRegistryFilterer) FilterLogTokenSymbolChange(opts *bind.FilterOpts, token []common.Address) (*TokenRegistryLogTokenSymbolChangeIterator, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.FilterLogs(opts, "LogTokenSymbolChange", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenRegistryLogTokenSymbolChangeIterator{contract: _TokenRegistry.contract, event: "LogTokenSymbolChange", logs: logs, sub: sub}, nil
+}
+
+// WatchLogTokenSymbolChange is a free log subscription operation binding the contract event 0x53d878a6530e56c9bc96548fa0a8cae4f1d1f49c86b0e934c086b992ebb6998f.
+//
+// Solidity: event LogTokenSymbolChange(token indexed address, oldSymbol string, newSymbol string)
+func (_TokenRegistry *TokenRegistryFilterer) WatchLogTokenSymbolChange(opts *bind.WatchOpts, sink chan<- *TokenRegistryLogTokenSymbolChange, token []common.Address) (event.Subscription, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _TokenRegistry.contract.WatchLogs(opts, "LogTokenSymbolChange", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(TokenRegistryLogTokenSymbolChange)
+				if err := _TokenRegistry.contract.UnpackLog(event, "LogTokenSymbolChange", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
 }
