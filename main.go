@@ -39,7 +39,7 @@ var (
 	passphrase           string
 	withdrawAll          bool
 	gasPrice             int64
-	gasLimit             int64
+	gasLimit             uint64
 	timeout              time.Duration
 )
 
@@ -56,7 +56,7 @@ func init() {
 	kingpin.Flag("etherdelta", "EtherDelta contract address (optional, default: 0x8d12A197cB00D4747a1fe03395095ce2A5CC6819)").Default(defaultEtherDelta).StringVar(&etherDeltaAddress)
 	kingpin.Flag("token-registry", "TokenRegistry contract address (optional, default: 0x926a74c5C36adf004C87399e65f75628b0f98D2C)").Default(defaultTokenRegistry).StringVar(&tokenRegistryAddress)
 	kingpin.Flag("gas-price", "The gas price in wei (optional, default: 1000000000, i.e. 1 Gwei)").Default(defaultGasPrice).Int64Var(&gasPrice)
-	kingpin.Flag("gas-limit", "The gas limit (optional, default: 100000)").Default(defaultGasLimit).Int64Var(&gasLimit)
+	kingpin.Flag("gas-limit", "The gas limit (optional, default: 100000)").Default(defaultGasLimit).Uint64Var(&gasLimit)
 	kingpin.Flag("timeout", "The timeout to submit a transaction to the Ethereum endpoint (optional, default: 5 seconds)").Default(defaultTimeout).DurationVar(&timeout)
 }
 
@@ -143,7 +143,7 @@ func main() {
 			log.Fatalf("Failed to create Transactor from Keystore file: %v", err)
 		}
 		opts.Context = ctx
-		opts.GasLimit = big.NewInt(gasLimit)
+		opts.GasLimit = gasLimit
 		opts.GasPrice = big.NewInt(gasPrice)
 
 		// Execute the Withdraw function of the EtherDelta contract given the required
@@ -189,7 +189,7 @@ func main() {
 				log.Fatalf("Failed to create Transactor from Keystore file: %v", err)
 			}
 			opts.Context = ctx
-			opts.GasLimit = big.NewInt(gasLimit)
+			opts.GasLimit = gasLimit
 			opts.GasPrice = big.NewInt(gasPrice)
 
 			// Execute the WithdrawToken function of the EtherDelta contract given the

@@ -34,7 +34,7 @@ Build and install the binary:
 
 ```console
 $ cd $GOPATH/src/github.com/linki/etherdelta-go
-$ glide install --strip-vendor
+$ dep ensure -vendor-only
 $ go install
 ```
 
@@ -93,6 +93,11 @@ There are some optional arguments as well:
 * `timeout`: The timeout to submit a transaction to the Ethereum endpoint. Defaults to 5 seconds.
 
 Keeping the defaults for `gas-price` and `gas-limit` will result in a maximum transaction fee of `0.0001` ETH.
+
+### Requirements
+
+* Go 1.10
+* Ethereum 1.8
 
 # Disclaimer
 
